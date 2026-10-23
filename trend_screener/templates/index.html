@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>趋势筛选器</title>
+<style>
+/* ============================================================
+   Design System — Dark Theme, Finance Tool
+   ============================================================ */
+:root {
+  --bg: #0f1117;
+  --bg2: #1a1d27;
+  --bg3: #252832;
+  --border: #2a2e3a;
+  --text: #c9cdd4;
+  --text2: #878b94;
+  --green: #22c55e;
+  --green2: #166534;
+  --red: #ef4444;
+  --red2: #7f1d1d;
+  --yellow: #eab308;
+  --yellow2: #713f12;
+  --blue: #3b82f6;
+  --blue2: #1e3a5f;
+  --cyan: #06b6d4;
+  --purple: #8b5cf6;
+  --radius: 8px;
+  --font: -apple-system, "Microsoft YaHei", sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font); background: var(--bg); color: var(--text);
+  min-height: 100vh; line-height: 1.6;
+}
+
+/* ---- Layout ---- */
+.header {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 14px 24px; display: flex; align-items: center; gap: 16px;
+}
+.header h1 { font-size: 20px; color: var(--cyan); }
+.header .sub { color: var(--text2); font-size: 13px; }
+.header .spacer { flex: 1; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  margin-right: 6px;
+}
+.status-dot.idle { background: var(--text2); }
+.status-dot.running { background: var(--yellow); animation: pulse 1s infinite; }
+.status-dot.done { background: var(--green); }
+.status-dot.error { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ---- Tabs ---- */
+.tabs {
+  display: flex; gap: 0; background: var(--bg2);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.tab-btn {
+  padding: 12px 24px; border: none; background: none; color: var(--text2);
+  cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent;
+  transition: all .2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+/* ---- Main Content ---- */
+.content { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ---- Run Panel ---- */
+.run-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; max-width: 500px;
+}
+.run-card h3 { margin-bottom: 16px; }
+.mode-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.mode-option {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; transition: all .2s;
+}
+.mode-option:hover { border-color: var(--cyan); }
+.mode-option.selected { border-color: var(--cyan); background: #0f2027; }
+.mode-option input[type="radio"] { accent-color: var(--cyan); }
+.mode-option .mode-name { font-weight: 600; }
+.mode-option .mode-desc { font-size: 12px; color: var(--text2); }
+
+.btn {
+  padding: 10px 28px; border: none; border-radius: var(--radius);
+  font-size: 15px; font-weight: 600; cursor: pointer; transition: all .2s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-run { background: var(--cyan); color: #000; }
+.btn-run:hover { background: #08b5d4; }
+.btn-run:disabled { opacity: .5; cursor: not-allowed; }
+
+.progress-bar {
+  margin-top: 16px; height: 4px; background: var(--bg3); border-radius: 2px;
+  overflow: hidden; display: none;
+}
+.progress-bar.active { display: block; }
+.progress-bar .fill {
+  height: 100%; background: var(--cyan);
+  animation: progress-move 2s ease-in-out infinite;
+}
+@keyframes progress-move { 0%{width:10%} 50%{width:70%} 100%{width:10%} }
+.progress-text { margin-top: 8px; font-size: 13px; color: var(--text2); }
+
+/* ---- Report ---- */
+.report-container { max-width: 1200px; }
+.report-h1 { font-size: 24px; color: var(--cyan); margin: 24px 0 12px; }
+.report-h2 { font-size: 18px; color: var(--text); margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.report-h3 { font-size: 15px; color: var(--text2); margin: 16px 0 8px; }
+.report-meta { font-size: 13px; color: var(--text2); }
+
+.report-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  margin: 12px 0 20px; background: var(--bg2); border-radius: var(--radius);
+  overflow: hidden;
+}
+.report-table th {
+  background: var(--bg3); padding: 10px 8px; text-align: left;
+  font-weight: 600; color: var(--text); white-space: nowrap;
+  border-bottom: 2px solid var(--border);
+}
+.report-table td {
+  padding: 8px; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.report-table tr:hover td { background: rgba(255,255,255,.02); }
+.report-table td:first-child, .report-table th:first-child { padding-left: 12px; }
+
+/* ---- History List ---- */
+.history-list { max-width: 700px; }
+.history-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 20px; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 8px; cursor: pointer;
+  transition: all .2s;
+}
+.history-item:hover { border-color: var(--cyan); background: #0f2027; }
+.history-item .h-date { font-weight: 600; min-width: 100px; }
+.history-item .h-info { font-size: 13px; color: var(--text2); }
+.history-item .h-arrow { margin-left: auto; color: var(--text2); }
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed; top: 20px; right: 20px; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 20px; z-index: 999; display: none; max-width: 400px;
+}
+.toast.show { display: block; }
+.toast.error { border-color: var(--red); }
+.toast.success { border-color: var(--green); }
+
+/* ---- Single Analysis Tab ---- */
+.search-container { position: relative; margin-bottom: 20px; max-width: 600px; }
+.search-input {
+  width: 100%; padding: 14px 18px; font-size: 15px;
+  background: var(--bg2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  outline: none; transition: border-color .2s;
+}
+.search-input:focus { border-color: var(--cyan); }
+.search-input::placeholder { color: var(--text2); }
+.search-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 260px; overflow-y: auto; z-index: 20; display: none;
+}
+.search-dropdown.show { display: block; }
+.search-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px; cursor: pointer; transition: background .15s;
+}
+.search-item:hover { background: var(--bg3); }
+.search-item .si-icon { font-size: 16px; width: 24px; text-align: center; }
+.search-item .si-code { color: var(--text2); font-size: 12px; min-width: 70px; }
+.search-item .si-name { flex: 1; }
+.search-item .si-type {
+  font-size: 11px; padding: 2px 8px; border-radius: 4px;
+  background: var(--bg3); color: var(--text2);
+}
+.dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.dash-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+}
+.dash-card h4 {
+  color: var(--cyan); font-size: 14px; margin-bottom: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.dash-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dash-card td {
+  padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.dash-card td:first-child { color: var(--text2); width: 40%; }
+.dash-card td:last-child { text-align: right; font-weight: 500; }
+.score-badge {
+  display: inline-block; padding: 4px 12px; border-radius: 20px;
+  font-weight: 700; font-size: 18px;
+}
+.score-high { background: var(--green2); color: var(--green); }
+.score-mid { background: var(--yellow2); color: var(--yellow); }
+.score-low { background: var(--red2); color: var(--red); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin: 1px; }
+.tag-up { background: var(--green2); color: var(--green); }
+.tag-dn { background: var(--red2); color: var(--red); }
+.tag-warn { background: var(--yellow2); color: var(--yellow); }
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .content { padding: 12px; }
+  .report-table { font-size: 11px; }
+  .report-table th, .report-table td { padding: 6px 4px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>📊 趋势筛选器</h1>
+  <span class="sub">Trend Screener v2.2</span>
+  <span class="spacer"></span>
+  <span id="statusText" style="font-size:13px;color:var(--text2)">就绪</span>
+  <span id="statusDot" class="status-dot idle"></span>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="run">▶ 运行</button>
+  <button class="tab-btn" data-tab="report">📋 最新报告</button>
+  <button class="tab-btn" data-tab="history">📁 历史报告</button>
+  <button class="tab-btn" data-tab="single">🔍 单标分析</button>
+</div>
+
+<!-- Content -->
+<div class="content">
+
+  <!-- ==================== Run Tab ==================== -->
+  <div id="tab-run" class="tab-panel active">
+    <div class="run-card">
+      <h3>运行趋势筛选</h3>
+      <div class="mode-group" id="modeGroup">
+        <label class="mode-option selected" data-mode="default">
+          <input type="radio" name="mode" value="default" checked>
+          <div>
+            <div class="mode-name">默认扫描（成分股）</div>
+            <div class="mode-desc">只在有行业分类的股票中筛选，~5600只，约7分钟</div>
+          </div>
+        </label>
+        <label class="mode-option" data-mode="full-scan">
+          <input type="radio" name="mode" value="full-scan">
+          <div>
+            <div class="mode-name">全量扫描</div>
+            <div class="mode-desc">扫描DB中全部股票，~9400只，耗时较长</div>
+          </div>
+        </label>
+        <label class="mode-option" data-mode="market-only">
+          <input type="radio" name="mode" value="market-only">
+          <div>
+            <div class="mode-name">仅大盘评估</div>
+            <div class="mode-desc">只输出大盘趋势评估，不筛选行业和个股，几秒钟</div>
+          </div>
+        </label>
+      </div>
+      <button class="btn btn-run" id="btnRun" onclick="startRun()">
+        ⚡ 开始运行
+      </button>
+      <div class="progress-bar" id="progressBar"><div class="fill"></div></div>
+      <div class="progress-text" id="progressText"></div>
+    </div>
+  </div>
+
+  <!-- ==================== Report Tab ==================== -->
+  <div id="tab-report" class="tab-panel">
+    <div class="report-container" id="reportContent">
+      <p style="color:var(--text2)">点击上方"运行"按钮生成报告，或从历史报告中查看。</p>
+    </div>
+  </div>
+
+  <!-- ==================== History Tab ==================== -->
+  <div id="tab-history" class="tab-panel">
+    <h2 style="margin-bottom:16px">历史报告</h2>
+    <div class="history-list" id="historyList">
+      <p style="color:var(--text2)">加载中...</p>
+    </div>
+  </div>
+
+  <!-- ==================== Single Analysis Tab ==================== -->
+  <div id="tab-single" class="tab-panel">
+    <div class="search-container">
+      <div style="display:flex;gap:12px">
+        <input type="text" id="searchInput" class="search-input"
+               placeholder="输入股票/行业代码或名称，如 600519、茅台、半导体..."
+               style="flex:1">
+        <button class="btn btn-run" id="btnAnalyze" onclick="startAnalysis()" disabled
+                style="white-space:nowrap">开始分析</button>
+      </div>
+      <div class="search-dropdown" id="searchDropdown"></div>
+    </div>
+    <div id="singleLoading" style="display:none;padding:40px;text-align:center;color:var(--text2)">
+      ⏳ 正在分析...
+    </div>
+    <div class="dashboard" id="singleDashboard"></div>
+    <div class="history-section" style="margin-top:24px">
+      <button class="tab-btn" onclick="loadSingleHistory()" style="border:1px solid var(--border);border-radius:var(--radius);padding:8px 16px;background:var(--bg2);color:var(--text);cursor:pointer;font-size:13px">📁 历史分析</button>
+      <div id="singleHistoryList" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+//  App State
+// ============================================================
+const state = {
+  running: false,
+  mode: 'default',
+  currentReport: null,
+  pollTimer: null,
+};
+
+// ============================================================
+//  Tab Switching
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'report') loadLatestReport();
+    if (btn.dataset.tab === 'history') loadHistory();
+  });
+});
+
+// ============================================================
+//  Mode Selection
+// ============================================================
+document.querySelectorAll('.mode-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    opt.querySelector('input').checked = true;
+    state.mode = opt.dataset.mode;
+  });
+});
+
+// ============================================================
+//  Run Control
+// ============================================================
+async function startRun() {
+  if (state.running) return;
+  state.running = true;
+  setRunning(true);
+
+  try {
+    const resp = await fetch('/api/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: state.mode}),
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      showToast(data.error || '启动失败', 'error');
+      setRunning(false);
+      return;
+    }
+    state.pollTimer = setInterval(pollStatus, 1000);
+  } catch (e) {
+    showToast('连接失败: ' + e.message, 'error');
+    setRunning(false);
+  }
+}
+
+async function pollStatus() {
+  try {
+    const resp = await fetch('/api/status');
+    const data = await resp.json();
+    document.getElementById('progressText').textContent = data.progress || '';
+
+    if (!data.running) {
+      clearInterval(state.pollTimer);
+      setRunning(false);
+      if (data.error) {
+        showToast('运行失败: ' + data.error, 'error');
+      } else {
+        showToast('运行完成!', 'success');
+        // 自动切换到报告 tab
+        document.querySelector('[data-tab="report"]').click();
+      }
+    }
+  } catch (e) {
+    clearInterval(state.pollTimer);
+    setRunning(false);
+  }
+}
+
+function setRunning(run) {
+  state.running = run;
+  document.getElementById('btnRun').disabled = run;
+  document.getElementById('btnRun').textContent = run ? '⏳ 运行中...' : '⚡ 开始运行';
+  document.getElementById('progressBar').classList.toggle('active', run);
+  if (!run) document.getElementById('progressText').textContent = '';
+
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'status-dot ' + (run ? 'running' : 'idle');
+  txt.textContent = run ? '运行中' : '就绪';
+}
+
+// ============================================================
+//  Report Loading
+// ============================================================
+async function loadLatestReport() {
+  const el = document.getElementById('reportContent');
+  el.innerHTML = '<p style="color:var(--text2)">加载中...</p>';
+  try {
+    const resp = await fetch('/api/report/latest');
+    const data = await resp.json();
+    if (data.ok) {
+      state.currentReport = data.filename;
+      el.innerHTML = `<p class="report-meta" style="margin-bottom:12px">
+        报告: ${data.filename}</p>${data.html}`;
+    } else {
+      el.innerHTML = `<p style="color:var(--red)">${data.error}</p>`;
+    }
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--red)">加载失败</p>`;
+  }
+}
+
+async function loadReportFile(filename) {
+  const el = document.getElementById('reportContent');
+  el.innerHTML = '<p style="color:var(--text2)">加载中...</p>';
+  try {
+    const resp = await fetch('/api/report/' + filename);
+    const data = await resp.json();
+    if (data.ok) {
+      state.currentReport = filename;
+      el.innerHTML = `<p class="report-meta" style="margin-bottom:12px">
+        报告: ${filename}</p>${data.html}`;
+    }
+  } catch (e) {
+    el.innerHTML = '<p style="color:var(--red)">加载失败</p>';
+  }
+  // switch to report tab
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-tab="report"]').classList.add('active');
+  document.getElementById('tab-report').classList.add('active');
+}
+
+// ============================================================
+//  History
+// ============================================================
+async function loadHistory() {
+  const el = document.getElementById('historyList');
+  try {
+    const resp = await fetch('/api/reports');
+    const data = await resp.json();
+    if (!data.ok) { el.innerHTML = '<p style="color:var(--red)">加载失败</p>'; return; }
+    if (data.reports.length === 0) {
+      el.innerHTML = '<p style="color:var(--text2)">暂无历史报告</p>';
+      return;
+    }
+    el.innerHTML = data.reports.map(r => `
+      <div class="history-item" onclick="loadReportFile('${r.filename}')">
+        <span class="h-date">📄 ${r.date}</span>
+        <span class="h-info">${(r.size / 1024).toFixed(1)} KB</span>
+        <span class="h-arrow">→</span>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = '<p style="color:var(--red)">加载失败</p>';
+  }
+}
+
+// ============================================================
+//  Toast
+// ============================================================
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ============================================================
+//  Single Analysis Tab
+// ============================================================
+let searchTimer = null;
+const searchInput = document.getElementById('searchInput');
+const searchDropdown = document.getElementById('searchDropdown');
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = searchInput.value.trim();
+  if (!q) { searchDropdown.classList.remove('show'); return; }
+  searchTimer = setTimeout(() => doSearch(q), 300);
+});
+
+// click outside to close dropdown
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-container')) searchDropdown.classList.remove('show');
+});
+
+async function doSearch(q) {
+  try {
+    const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+    const d = await r.json();
+    if (!d.ok || !d.results.length) {
+      searchDropdown.innerHTML = '<div class="search-item" style="color:var(--text2)">无匹配结果</div>';
+      searchDropdown.classList.add('show');
+      return;
+    }
+    searchDropdown.innerHTML = d.results.map(item => `
+      <div class="search-item" onclick="selectAsset('${item.code}','${item.type}','${item.name}')">
+        <span class="si-icon">${item.type === 'stock' ? '📈' : '📊'}</span>
+        <span class="si-name">${item.name}</span>
+        <span class="si-code">${item.code}</span>
+        <span class="si-type">${item.type === 'stock' ? '股票' : '行业'}</span>
+      </div>
+    `).join('');
+    searchDropdown.classList.add('show');
+  } catch (e) {
+    searchDropdown.innerHTML = '<div class="search-item" style="color:var(--red)">搜索失败</div>';
+    searchDropdown.classList.add('show');
+  }
+}
+
+let selectedAsset = null;
+
+async function selectAsset(code, type, name) {
+  searchInput.value = name + ' (' + code + ')';
+  searchDropdown.classList.remove('show');
+  selectedAsset = {code, type, name};
+  document.getElementById('btnAnalyze').disabled = false;
+}
+
+async function startAnalysis() {
+  if (!selectedAsset) return;
+  const {code, type, name} = selectedAsset;
+  document.getElementById('btnAnalyze').disabled = true;
+  document.getElementById('btnAnalyze').textContent = '分析中...';
+  document.getElementById('singleLoading').style.display = 'block';
+  document.getElementById('singleDashboard').innerHTML = '';
+  try {
+    const r = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code, type}),
+    });
+    const d = await r.json();
+    document.getElementById('singleLoading').style.display = 'none';
+    if (d.ok) renderDashboard(d.result);
+    else showToast(d.error || '分析失败', 'error');
+  } catch (e) {
+    document.getElementById('singleLoading').style.display = 'none';
+    showToast('分析失败: ' + e.message, 'error');
+  }
+}
+
+function renderDashboard(res) {
+  if (res.error) {
+    document.getElementById('singleDashboard').innerHTML =
+      '<div class="dash-card"><h4>错误</h4><p>' + res.error + '</p></div>';
+    return;
+  }
+  const cs = res.composite_score || 0;
+  const badgeCls = cs > 70 ? 'score-high' : cs > 50 ? 'score-mid' : 'score-low';
+  const tf = res.three_timeframe || {};
+  const adx = res.adx || {};
+  const ma = res.ma_alignment || {};
+  const exh = res.exhaustion || {};
+  const acc = res.acceleration || {};
+  const pvr = res.pullback_vs_reversal || {};
+  const emerge = res.emergence || {};
+  const osc = res.oscillation || {};
+  const vol = res.volume || {};
+  const exit = res.exit || {};
+  const pat = res.patterns || {};
+  const me = res.market_env || {};
+
+  document.getElementById('singleDashboard').innerHTML = `
+    <div class="dash-card">
+      <h4>📋 ${res.name || res.symbol}</h4>
+      <table>
+        <tr><td>代码</td><td>${res.symbol} (${res.asset_type === 'industry' ? '行业' : '股票'})</td></tr>
+        <tr><td>数据天数</td><td>${res.data_rows || res.data_days || '?'}</td></tr>
+        <tr><td>最新收盘</td><td>${res.close || '?'}</td></tr>
+        <tr><td>分析日期</td><td>${(res.analyzed_at || res.date || '').slice(0,10)}</td></tr>
+      </table>
+      <div style="text-align:center;margin-top:12px">
+        <span class="score-badge ${badgeCls}">${res.composite_score || '?'}分</span>
+        <span style="margin-left:8px;color:var(--text2)">${res.recommendation || ''}</span>
+      </div>
+    </div>
+
+    <div class="dash-card">
+      <h4>📊 三时间尺度趋势</h4>
+      <table>
+        <tr><td>主要趋势(周线)</td><td>${tf.primary_score || '?'}/4 <span class="tag ${tf.prim_up ? 'tag-up' : 'tag-dn'}">${tf.prim_up ? '↑' : '↓'}</span></td></tr>
+        <tr><td>次级趋势(日线)</td><td>${tf.secondary_score || '?'}/4 <span class="tag ${tf.sec_up ? 'tag-up' : 'tag-dn'}">${tf.sec_up ? '↑' : '↓'}</span></td></tr>
+        <tr><td>小型趋势(日线)</td><td>${tf.minor_score || '?'}/3 <span class="tag ${tf.min_up ? 'tag-up' : 'tag-dn'}">${tf.min_up ? '↑' : '↓'}</span></td></tr>
+        <tr><td>综合状态</td><td><strong>${tf.state || '?'}</strong> | ${tf.action || ''}</td></tr>
+        <tr><td>综合得分</td><td>${tf.total_score != null ? tf.total_score.toFixed(2) : '?'}</td></tr>
+      </table>
+    </div>
+
+    <div class="dash-card">
+      <h4>📈 趋势强度</h4>
+      <table>
+        <tr><td>ADX</td><td>${adx.adx || '?'} ${adx.is_trending ? '<span class=\"tag tag-up\">有趋势</span>' : '<span class=\"tag tag-dn\">无趋势</span>'}</td></tr>
+        <tr><td>+DI / -DI</td><td>${adx.plus_di || '?'} / ${adx.minus_di || '?'}</td></tr>
+        <tr><td>均线多头</td><td>${ma.long_term_up ? '<span class=\"tag tag-up\">是</span>' : '<span class=\"tag tag-dn\">否</span>'}</td></tr>
+        <tr><td>EMA排列</td><td>${ma.ema_aligned ? '多头' : '空头/缠绕'}</td></tr>
+        <tr><td>HH/HL结构</td><td>${(res.price_structure || {}).is_bullish ? '<span class=\"tag tag-up\">多头结构</span>' : '否'}</td></tr>
+        <tr><td>量价健康</td><td>${vol.is_healthy ? '<span class=\"tag tag-up\">健康</span>' : '<span class=\"tag tag-dn\">不健康</span>'}</td></tr>
+      </table>
+    </div>
+
+    <div class="dash-card">
+      <h4>🔥 过热检测</h4>
+      <table>
+        <tr><td>RSI(14)</td><td>${exh.rsi || '?'}</td></tr>
+        <tr><td>Bollinger %B</td><td>${exh.pct_b || '?'}</td></tr>
+        <tr><td>加速信号</td><td>${acc.is_accelerating ? '<span class=\"tag tag-warn\">' + (acc.direction || '') + '加速</span>' : '无'}</td></tr>
+        <tr><td>见顶等级</td><td>${exh.is_exhausted ? ('<span class=\"tag tag-warn\">' + (exh.exhaustion_level || '?') + '级</span>') : '无见顶信号'}</td></tr>
+        <tr><td>见顶原因</td><td style="font-size:12px">${(exh.signals || []).join(', ') || '-'}</td></tr>
+      </table>
+    </div>
+
+    <div class="dash-card">
+      <h4>🔄 阶段判断</h4>
+      <table>
+        <tr><td>回调/反转</td><td>${pvr.classification || '?'}</td></tr>
+        <tr><td>前低跌破</td><td>${pvr.low_broken ? '<span class=\"tag tag-dn\">是</span>' : '否'}</td></tr>
+        <tr><td>反弹力度</td><td>${pvr.rebound_strength || '?'}</td></tr>
+        <tr><td>趋势初现</td><td>${emerge.is_emerging ? '<span class=\"tag tag-up\">是(强度' + (emerge.strength || '?') + ')</span>' : '否'}</td></tr>
+        <tr><td>震荡规避</td><td>${osc.should_avoid_trend_strategy ? '<span class=\"tag tag-warn\">是</span>' : '否'}</td></tr>
+        <tr><td>形态信号</td><td style="font-size:12px">${(pat.signals || []).join(', ') || '无'}</td></tr>
+      </table>
+    </div>
+
+    <div class="dash-card">
+      <h4>🛑 止损参考</h4>
+      <table>
+        <tr><td>吊灯止损</td><td>${exit.chandelier_stop || '?'}</td></tr>
+        <tr><td>ATR移动止损</td><td>${exit.atr_trail_stop || '?'}</td></tr>
+        <tr><td>当前价</td><td>${res.close || '?'}</td></tr>
+        <tr><td>建议退出</td><td>${exit.should_exit ? '<span class=\"tag tag-warn\">是</span>' : '暂时持有'}</td></tr>
+        <tr><td>退出原因</td><td style="font-size:12px">${(exit.reasons || []).join(', ') || '-'}</td></tr>
+      </table>
+    </div>
+  `;
+}
+
+async function loadSingleHistory() {
+  const el = document.getElementById('singleHistoryList');
+  el.innerHTML = '<p style="color:var(--text2)">加载中...</p>';
+  try {
+    const r = await fetch('/api/analyze/history');
+    const d = await r.json();
+    if (!d.items.length) { el.innerHTML = '<p style="color:var(--text2)">暂无历史</p>'; return; }
+    el.innerHTML = d.items.slice(0, 15).map(item => `
+      <div class="history-item" onclick="viewSingleHistory('${item.filename}')">
+        <span class="h-date">📋 ${item.code}</span>
+        <span class="h-info">${item.date} ${item.time}</span>
+        <span class="h-arrow">→</span>
+      </div>
+    `).join('');
+  } catch (e) { el.innerHTML = '<p style="color:var(--red)">加载失败</p>'; }
+}
+
+async function viewSingleHistory(filename) {
+  document.getElementById('singleLoading').style.display = 'block';
+  document.getElementById('singleDashboard').innerHTML = '';
+  // switch to single tab
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-tab="single"]').classList.add('active');
+  document.getElementById('tab-single').classList.add('active');
+  try {
+    const r = await fetch('/api/analyze/history/' + filename);
+    const d = await r.json();
+    document.getElementById('singleLoading').style.display = 'none';
+    if (d.ok) renderDashboard(d.result);
+    else showToast('加载失败', 'error');
+  } catch (e) {
+    document.getElementById('singleLoading').style.display = 'none';
+    showToast('加载失败', 'error');
+  }
+}
+
+// ============================================================
+//  Init
+// ============================================================
+loadLatestReport();
+</script>
+</body>
+</html>

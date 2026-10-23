@@ -1,0 +1,8 @@
+{
+    "python.defaultInterpreterPath": "C:\\Users\\chenzhilin\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+    "python.terminal.activateEnvironment": false,
+    "terminal.integrated.defaultProfile.windows": "Command Prompt",
+    "terminal.integrated.env.windows": {
+        "PATH": "C:\\Users\\chenzhilin\\AppData\\Local\\Programs\\Python\\Python311;C:\\Users\\chenzhilin\\AppData\\Local\\Programs\\Python\\Python311\\Scripts;${env:PATH}"
+    }
+}
